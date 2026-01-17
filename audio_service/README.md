@@ -278,6 +278,16 @@ _proxyAudioHandler = await IsolatedAudioHandler.lookup(
 
 See the full example for how to handle queues/playlists, headset button clicks, media artwork and text to speech.
 
+## Headset Button Multi-Click Detection
+
+Audio service now automatically supports multi-click detection for headset buttons, similar to Android's native audio session behavior:
+
+* **Single click**: Toggle play/pause
+* **Double click**: Skip to next track
+* **Triple click**: Skip to previous track
+
+This feature works automatically on both Android and iOS with no configuration needed. The detection window is set to 300ms between clicks.
+
 ## Configuring the audio session
 
 If your app uses audio, you should tell the operating system what kind of usage scenario your app has and how your app will interact with other audio apps on the device. Different audio apps often have unique requirements. For example, when a navigator app speaks driving instructions, a music player should duck its audio while a podcast player should pause its audio. Depending on which one of these three apps you are building, you will need to configure your app's audio settings and callbacks to appropriately handle these interactions.

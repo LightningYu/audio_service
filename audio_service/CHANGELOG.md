@@ -1,3 +1,11 @@
+## 0.18.19
+
+* Add multi-click detection for headset buttons (Android & iOS):
+  - Single click: toggle play/pause
+  - Double click: skip to next track
+  - Triple click: skip to previous track
+* Seamlessly integrated - no configuration needed, works automatically
+
 ## 0.18.18
 
 * Fix setPlaybackState entitlement issue on iOS.
