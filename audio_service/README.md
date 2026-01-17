@@ -21,6 +21,7 @@ You implement these callbacks to play the particular type of audio that your app
 | -------                            | :-------: | :-----: | :-----: | :-----: |
 | background audio                   | ✅        | ✅      | ✅      | ✅      |
 | headset clicks                     | ✅        | ✅      | ✅      | ✅      |
+| headset multi-click detection      | ✅        | ✅      |         |         |
 | play/pause/seek/rate/stop          | ✅        | ✅      | ✅      | ✅      |
 | fast forward/rewind                | ✅        | ✅      | ✅      | ✅      |
 | repeat/shuffle mode                | ✅        | ✅      | ✅      | ✅      |
