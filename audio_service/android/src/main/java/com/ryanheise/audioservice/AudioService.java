@@ -753,6 +753,10 @@ public class AudioService extends MediaBrowserServiceCompat {
 
     private void releaseMediaSession() {
         if (mediaSession == null) return;
+        // Clean up multi-click detection timer
+        if (mediaSessionCallback != null) {
+            mediaSessionCallback.cleanup();
+        }
         deactivateMediaSession();
         mediaSession.release();
         mediaSession = null;
@@ -1168,6 +1172,16 @@ public class AudioService extends MediaBrowserServiceCompat {
         public void onPlayMediaItem(final MediaDescriptionCompat description) {
             if (listener == null) return;
             listener.onPlayMediaItem(getMediaMetadata(description.getMediaId()));
+        }
+
+        /**
+         * Clean up resources to prevent memory leaks
+         */
+        void cleanup() {
+            if (clickRunnable != null) {
+                clickHandler.removeCallbacks(clickRunnable);
+                clickRunnable = null;
+            }
         }
     }
 

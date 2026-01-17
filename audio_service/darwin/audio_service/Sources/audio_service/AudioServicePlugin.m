@@ -625,6 +625,11 @@ static const NSTimeInterval MULTI_CLICK_TIMEOUT = 0.3; // 300ms
 }
 
 - (void) dealloc {
+    // Clean up multi-click timer
+    if (clickTimer != nil) {
+        [clickTimer invalidate];
+        clickTimer = nil;
+    }
     [[NSNotificationCenter defaultCenter] removeObserver:self];
 }
 
