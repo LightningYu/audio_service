@@ -872,8 +872,8 @@ public class AudioService extends MediaBrowserServiceCompat {
     public class MediaSessionCallback extends MediaSessionCompat.Callback {
         // Multi-click detection for headset button
         private static final long MULTI_CLICK_TIMEOUT = 300; // milliseconds
-        private int clickCount = 0;
-        private long lastClickTime = 0;
+        private volatile int clickCount = 0;
+        private volatile long lastClickTime = 0;
         private Handler clickHandler = new Handler(Looper.getMainLooper());
         private Runnable clickRunnable;
 

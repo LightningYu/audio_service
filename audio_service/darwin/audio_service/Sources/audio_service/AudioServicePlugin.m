@@ -30,6 +30,8 @@ static MPMediaItemArtwork* artwork = nil;
 static NSMutableDictionary *nowPlayingInfo = nil;
 
 // Multi-click detection state
+// Note: These static variables are safe because NSTimer callbacks are always
+// executed on the main thread/run loop where they were scheduled, preventing race conditions.
 static NSInteger clickCount = 0;
 static NSTimeInterval lastClickTime = 0;
 static NSTimer *clickTimer = nil;
@@ -500,6 +502,7 @@ static const NSTimeInterval MULTI_CLICK_TIMEOUT = 0.3; // 300ms
         switch (currentClickCount) {
             case 1:
                 // Single click: toggle play/pause
+                // Button value 0 corresponds to MediaButton.media
                 [handlerChannel invokeMethod:@"click" arguments:@{
                     @"button":@(0)
                 }];
