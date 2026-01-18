@@ -29,6 +29,14 @@ static NSNumber *rewindInterval = nil;
 static MPMediaItemArtwork* artwork = nil;
 static NSMutableDictionary *nowPlayingInfo = nil;
 
+// Multi-click detection state
+// Note: These static variables are safe because NSTimer callbacks are always
+// executed on the main thread/run loop where they were scheduled, preventing race conditions.
+static NSInteger clickCount = 0;
+static NSTimeInterval lastClickTime = 0;
+static NSTimer *clickTimer = nil;
+static const NSTimeInterval MULTI_CLICK_TIMEOUT = 0.3; // 300ms
+
 @implementation AudioServicePlugin {
     FlutterMethodChannel *_channel;
 }
@@ -458,10 +466,59 @@ static NSMutableDictionary *nowPlayingInfo = nil;
 
 - (MPRemoteCommandHandlerStatus) togglePlayPause: (MPRemoteCommandEvent *) event {
     //NSLog(@"togglePlayPause");
-    [handlerChannel invokeMethod:@"click" arguments:@{
-        @"button":@(0)
-    }];
+    [self handleMultiClick];
     return MPRemoteCommandHandlerStatusSuccess;
+}
+
+/**
+ * Handle multi-click detection for headset button
+ * - Single click: play/pause toggle
+ * - Double click: skip to next
+ * - Triple click: skip to previous
+ */
+- (void) handleMultiClick {
+    NSTimeInterval currentTime = [[NSDate date] timeIntervalSince1970];
+    
+    // Check if this click is within the timeout window
+    if ((currentTime - lastClickTime) <= MULTI_CLICK_TIMEOUT) {
+        clickCount++;
+    } else {
+        clickCount = 1;
+    }
+    
+    lastClickTime = currentTime;
+    
+    // Cancel any pending click action
+    if (clickTimer != nil) {
+        [clickTimer invalidate];
+        clickTimer = nil;
+    }
+    
+    // Create new click action with current click count
+    NSInteger currentClickCount = clickCount;
+    clickTimer = [NSTimer scheduledTimerWithTimeInterval:MULTI_CLICK_TIMEOUT
+                                                 repeats:NO
+                                                   block:^(NSTimer * _Nonnull timer) {
+        switch (currentClickCount) {
+            case 1:
+                // Single click: toggle play/pause
+                // Button value 0 corresponds to MediaButton.media
+                [handlerChannel invokeMethod:@"click" arguments:@{
+                    @"button":@(0)
+                }];
+                break;
+            case 2:
+                // Double click: skip to next
+                [handlerChannel invokeMethod:@"skipToNext" arguments:@{}];
+                break;
+            case 3:
+            default:
+                // Triple click (or more): skip to previous
+                [handlerChannel invokeMethod:@"skipToPrevious" arguments:@{}];
+                break;
+        }
+        clickCount = 0;
+    }];
 }
 
 - (MPRemoteCommandHandlerStatus) stop: (MPRemoteCommandEvent *) event {
@@ -571,6 +628,11 @@ static NSMutableDictionary *nowPlayingInfo = nil;
 }
 
 - (void) dealloc {
+    // Clean up multi-click timer
+    if (clickTimer != nil) {
+        [clickTimer invalidate];
+        clickTimer = nil;
+    }
     [[NSNotificationCenter defaultCenter] removeObserver:self];
 }
 

@@ -753,6 +753,10 @@ public class AudioService extends MediaBrowserServiceCompat {
 
     private void releaseMediaSession() {
         if (mediaSession == null) return;
+        // Clean up multi-click detection timer
+        if (mediaSessionCallback != null) {
+            mediaSessionCallback.cleanup();
+        }
         deactivateMediaSession();
         mediaSession.release();
         mediaSession = null;
@@ -866,6 +870,13 @@ public class AudioService extends MediaBrowserServiceCompat {
     }
 
     public class MediaSessionCallback extends MediaSessionCompat.Callback {
+        // Multi-click detection for headset button
+        private static final long MULTI_CLICK_TIMEOUT = 300; // milliseconds
+        private volatile int clickCount = 0;
+        private volatile long lastClickTime = 0;
+        private Handler clickHandler = new Handler(Looper.getMainLooper());
+        private Runnable clickRunnable;
+
         @Override
         public void onAddQueueItem(MediaDescriptionCompat description) {
             if (listener == null) return;
@@ -978,7 +989,7 @@ public class AudioService extends MediaBrowserServiceCompat {
                     // These are the "genuine" media button click events
                 case KeyEvent.KEYCODE_MEDIA_PLAY_PAUSE:
                 case KeyEvent.KEYCODE_HEADSETHOOK:
-                    listener.onClick(eventToButton(event));
+                    handleMultiClick(eventToButton(event));
                     break;
                 }
             }
@@ -997,6 +1008,63 @@ public class AudioService extends MediaBrowserServiceCompat {
             default:
                 return MediaButton.media;
             }
+        }
+
+        /**
+         * Handle multi-click detection for headset button
+         * - Single click: play/pause toggle
+         * - Double click: skip to next
+         * - Triple click: skip to previous
+         */
+        private void handleMultiClick(MediaButton button) {
+            // Only apply multi-click detection for media button (headset hook)
+            if (button != MediaButton.media) {
+                listener.onClick(button);
+                return;
+            }
+
+            long currentTime = System.currentTimeMillis();
+            
+            // Check if this click is within the timeout window
+            if (currentTime - lastClickTime <= MULTI_CLICK_TIMEOUT) {
+                clickCount++;
+            } else {
+                clickCount = 1;
+            }
+            
+            lastClickTime = currentTime;
+            
+            // Cancel any pending click action
+            if (clickRunnable != null) {
+                clickHandler.removeCallbacks(clickRunnable);
+            }
+            
+            // Create new click action with current click count
+            final int currentClickCount = clickCount;
+            clickRunnable = new Runnable() {
+                @Override
+                public void run() {
+                    switch (currentClickCount) {
+                        case 1:
+                            // Single click: toggle play/pause
+                            listener.onClick(MediaButton.media);
+                            break;
+                        case 2:
+                            // Double click: skip to next
+                            onSkipToNext();
+                            break;
+                        case 3:
+                        default:
+                            // Triple click (or more): skip to previous
+                            onSkipToPrevious();
+                            break;
+                    }
+                    clickCount = 0;
+                }
+            };
+            
+            // Wait for timeout to execute action
+            clickHandler.postDelayed(clickRunnable, MULTI_CLICK_TIMEOUT);
         }
 
         @Override
@@ -1104,6 +1172,16 @@ public class AudioService extends MediaBrowserServiceCompat {
         public void onPlayMediaItem(final MediaDescriptionCompat description) {
             if (listener == null) return;
             listener.onPlayMediaItem(getMediaMetadata(description.getMediaId()));
+        }
+
+        /**
+         * Clean up resources to prevent memory leaks
+         */
+        void cleanup() {
+            if (clickRunnable != null) {
+                clickHandler.removeCallbacks(clickRunnable);
+                clickRunnable = null;
+            }
         }
     }
 

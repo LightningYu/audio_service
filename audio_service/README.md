@@ -21,6 +21,7 @@ You implement these callbacks to play the particular type of audio that your app
 | -------                            | :-------: | :-----: | :-----: | :-----: |
 | background audio                   | ✅        | ✅      | ✅      | ✅      |
 | headset clicks                     | ✅        | ✅      | ✅      | ✅      |
+| headset multi-click detection      | ✅        | ✅      |         |         |
 | play/pause/seek/rate/stop          | ✅        | ✅      | ✅      | ✅      |
 | fast forward/rewind                | ✅        | ✅      | ✅      | ✅      |
 | repeat/shuffle mode                | ✅        | ✅      | ✅      | ✅      |
@@ -277,6 +278,16 @@ _proxyAudioHandler = await IsolatedAudioHandler.lookup(
 ```
 
 See the full example for how to handle queues/playlists, headset button clicks, media artwork and text to speech.
+
+## Headset Button Multi-Click Detection
+
+Audio service now automatically supports multi-click detection for headset buttons, similar to Android's native audio session behavior:
+
+* **Single click**: Toggle play/pause
+* **Double click**: Skip to next track
+* **Triple click**: Skip to previous track
+
+This feature works automatically on both Android and iOS with no configuration needed. The detection window is set to 300ms between clicks.
 
 ## Configuring the audio session
 
