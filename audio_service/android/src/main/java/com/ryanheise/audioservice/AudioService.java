@@ -65,6 +65,8 @@ public class AudioService extends MediaBrowserServiceCompat {
     public static final String CUSTOM_ACTION_STOP = "com.ryanheise.audioservice.action.STOP";
     public static final String CUSTOM_ACTION_FAST_FORWARD = "com.ryanheise.audioservice.action.FAST_FORWARD";
     public static final String CUSTOM_ACTION_REWIND = "com.ryanheise.audioservice.action.REWIND";
+    public static final String ACTION_NOTIFICATION_PLAY = "com.ryanheise.audioservice.action.NOTIFICATION_PLAY";
+    public static final String ACTION_NOTIFICATION_PAUSE = "com.ryanheise.audioservice.action.NOTIFICATION_PAUSE";
     private static final String BROWSABLE_ROOT_ID = "root";
     private static final String RECENT_ROOT_ID = "recent";
     // See the comment in onMediaButtonEvent to understand how the BYPASS keycodes work.
@@ -348,6 +350,20 @@ public class AudioService extends MediaBrowserServiceCompat {
 
     @Override
     public int onStartCommand(final Intent intent, int flags, int startId) {
+        if (intent != null) {
+            String action = intent.getAction();
+            if (ACTION_NOTIFICATION_PLAY.equals(action)) {
+                if (mediaSessionCallback != null) {
+                    mediaSessionCallback.onPlay();
+                }
+                return START_NOT_STICKY;
+            } else if (ACTION_NOTIFICATION_PAUSE.equals(action)) {
+                if (mediaSessionCallback != null) {
+                    mediaSessionCallback.onPause();
+                }
+                return START_NOT_STICKY;
+            }
+        }
         MediaButtonReceiver.handleIntent(mediaSession, intent);
         return START_NOT_STICKY;
     }
@@ -477,6 +493,26 @@ public class AudioService extends MediaBrowserServiceCompat {
     }
 
     PendingIntent buildMediaButtonPendingIntent(long action) {
+        // For play/pause, use direct service intents instead of routing through
+        // MediaButtonReceiver with bypass keycodes. On Android 16+, KEYCODE_MUTE
+        // is no longer forwarded through the media session framework's
+        // dispatchMediaButtonEvent(), causing the play button to silently fail.
+        if (action == PlaybackStateCompat.ACTION_PLAY || action == PlaybackStateCompat.ACTION_PAUSE) {
+            Intent intent = new Intent(this, AudioService.class);
+            intent.setAction(action == PlaybackStateCompat.ACTION_PLAY
+                    ? ACTION_NOTIFICATION_PLAY : ACTION_NOTIFICATION_PAUSE);
+            int flags = 0;
+            if (Build.VERSION.SDK_INT >= 23) {
+                flags |= PendingIntent.FLAG_IMMUTABLE;
+            }
+            int requestCode = action == PlaybackStateCompat.ACTION_PLAY
+                    ? KEYCODE_BYPASS_PLAY : KEYCODE_BYPASS_PAUSE;
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                return PendingIntent.getForegroundService(this, requestCode, intent, flags);
+            } else {
+                return PendingIntent.getService(this, requestCode, intent, flags);
+            }
+        }
         int keyCode = toKeyCode(action);
         if (keyCode == KeyEvent.KEYCODE_UNKNOWN)
             return null;
@@ -930,6 +966,8 @@ public class AudioService extends MediaBrowserServiceCompat {
         @Override
         public void onPlay() {
             if (listener == null) return;
+            if (!mediaSession.isActive())
+                mediaSession.setActive(true);
             listener.onPlay();
         }
 
